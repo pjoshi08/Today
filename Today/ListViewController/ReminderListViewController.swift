@@ -30,6 +30,21 @@ class ReminderListViewController: UICollectionViewController {
         
         collectionView.dataSource = dataSource
     }
+    
+    override func collectionView(
+        _ collectionView: UICollectionView, shouldSelectItemAt indexPath: IndexPath
+    ) -> Bool {
+        let id = reminders[indexPath.item].id
+        pushDetailViewForReminder(withId: id)
+        return false
+    }
+    
+    func pushDetailViewForReminder(withId id: Reminder.ID) {
+        let reminder = reminder(withId: id)
+        let viewController = ReminderViewController(reminder: reminder)
+        /// If a view controller is currently embedded in a navigation controller, a reference to the navigation controller is stored in the optional navigationController property.
+        navigationController?.pushViewController(viewController, animated: true)
+    }
 
     private func listLayout() -> UICollectionViewCompositionalLayout {
         /// creates a new list configuration variable with the grouped appearance.
