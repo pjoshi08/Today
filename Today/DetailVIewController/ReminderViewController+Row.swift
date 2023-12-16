@@ -10,6 +10,7 @@ import UIKit
 extension ReminderViewController {
     /// Later, you’ll use instances of Row to represent items in the detail list. Diffable data sources that supply UIKit lists with data and styling require that items conform to Hashable. The diffable data source uses hash values to determine which elements have changed between snapshots.
     enum Row: Hashable {
+        case header(String)
         case date
         case notes
         case time
