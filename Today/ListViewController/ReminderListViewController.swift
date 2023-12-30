@@ -41,7 +41,12 @@ class ReminderListViewController: UICollectionViewController {
     
     func pushDetailViewForReminder(withId id: Reminder.ID) {
         let reminder = reminder(withId: id)
-        let viewController = ReminderViewController(reminder: reminder)
+        let viewController = ReminderViewController(reminder: reminder) { [weak self] reminder in
+            /// This function updates the array of reminders in the data source with the edited reminder.
+            self?.updateReminder(reminder)
+            /// Because updating the snapshot depends on the array of reminders, you must update the array of reminders before you update the snapshot.
+            self?.updateSnapshot(reloading: [reminder.id])
+        }
         /// If a view controller is currently embedded in a navigation controller, a reference to the navigation controller is stored in the optional navigationController property.
         navigationController?.pushViewController(viewController, animated: true)
     }

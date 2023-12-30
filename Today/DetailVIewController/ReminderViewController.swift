@@ -12,11 +12,20 @@ class ReminderViewController: UICollectionViewController {
     private typealias DataSource = UICollectionViewDiffableDataSource<Section, Row>
     private typealias SnapShot = NSDiffableDataSourceSnapshot<Section, Row>
     
-    var reminder: Reminder
+    var reminder: Reminder {
+        didSet {
+            onChange(reminder)
+        }
+    }
+    var workingReminder: Reminder
+    var onChange: (Reminder) -> Void
     private var dataSource: DataSource!
     
-    init(reminder: Reminder) {
+    /// Recall that when you pass a closure as an argument, you need to label it as escaping if it’s called after the function returns.
+    init(reminder: Reminder, onChange: @escaping (Reminder) -> Void) {
         self.reminder = reminder
+        self.workingReminder = reminder
+        self.onChange = onChange
         var listConfiguration = UICollectionLayoutListConfiguration(appearance: .insetGrouped)
         listConfiguration.showsSeparators = false
         /// [Display Headers](https://developer.apple.com/documentation/uikit/uicollectionview)
@@ -53,6 +62,16 @@ class ReminderViewController: UICollectionViewController {
         updateSnapshotForViewing()
     }
     
+    /// The system calls setEditing(_:animated:) when the user taps the Edit or Done button. You’ll override this method to update ReminderViewController for the view and editing modes.
+    override func setEditing(_ editing: Bool, animated: Bool) {
+        super.setEditing(editing, animated: animated)
+        if editing {
+            prepareForEditing()
+        } else {
+            prepareForViewing()
+        }
+    }
+    
     func cellRegistrationHandler(cell: UICollectionViewListCell, indexPath: IndexPath, row: Row) {
         let section = section(for: indexPath)
         /// switch statement using a tuple to configure cells for different section and row combinations
@@ -76,14 +95,15 @@ class ReminderViewController: UICollectionViewController {
         cell.tintColor = .todayPrimaryTint
     }
     
-    /// The system calls setEditing(_:animated:) when the user taps the Edit or Done button. You’ll override this method to update ReminderViewController for the view and editing modes.
-    override func setEditing(_ editing: Bool, animated: Bool) {
-        super.setEditing(editing, animated: animated)
-        if editing {
-            updateSnapshotForEditing()
-        } else {
-            updateSnapshotForViewing()
-        }
+    @objc func didCancelEdit() {
+        workingReminder = reminder
+        setEditing(false, animated: true)
+    }
+    
+    private func prepareForEditing() {
+        navigationItem.leftBarButtonItem = UIBarButtonItem(
+            barButtonSystemItem: .cancel, target: self, action: #selector(didCancelEdit))
+        updateSnapshotForEditing()
     }
     
     private func updateSnapshotForEditing() {
@@ -95,10 +115,15 @@ class ReminderViewController: UICollectionViewController {
             [.header(Section.date.name), .editableDate(reminder.dueDate)], toSection: .date)
         snapshot.appendItems(
             [.header(Section.notes.name), .editableText(reminder.notes)], toSection: .notes)
-        //snapshot.appendItems([.header(Section.title.name)], toSection: .title)
-        //snapshot.appendItems([.header(Section.date.name)], toSection: .date)
-        //snapshot.appendItems([.header(Section.notes.name)], toSection: .notes)
         dataSource.apply(snapshot)
+    }
+    
+    private func prepareForViewing() {
+        navigationItem.leftBarButtonItem = nil
+        if workingReminder != reminder {
+            reminder = workingReminder
+        }
+        updateSnapshotForViewing()
     }
     
     private func updateSnapshotForViewing() {
