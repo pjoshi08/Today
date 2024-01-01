@@ -26,6 +26,15 @@ class ReminderListViewController: UICollectionViewController {
             return collectionView.dequeueConfiguredReusableCell(using: cellRegistration, for: indexPath, item: itemIdentifier)
         }
         
+        let addButton = UIBarButtonItem(
+            barButtonSystemItem: .add, target: self, action: #selector(didPressAddButton(_:)))
+        addButton.accessibilityLabel = NSLocalizedString(
+            "Add reminder", comment: "Add button accessibility label")
+        navigationItem.rightBarButtonItem = addButton
+        if #available(iOS 16, *) {
+            navigationItem.style = .navigator
+        }
+        
         updateSnapshot()
         
         collectionView.dataSource = dataSource
@@ -56,8 +65,23 @@ class ReminderListViewController: UICollectionViewController {
         /// UICollectionLayoutListConfiguration creates a section in a list layout.
         var listConfiguation = UICollectionLayoutListConfiguration(appearance: .grouped)
         listConfiguation.showsSeparators = false
+        listConfiguation.trailingSwipeActionsConfigurationProvider = makeSwipeActions
         listConfiguation.backgroundColor = .clear
         return UICollectionViewCompositionalLayout.list(using: listConfiguation)
+    }
+    
+    /// A UISwipeActionsConfiguration object associates custom swipe actions with a row in a list. You’ll create a function that generates a configuration for each item in the list.
+    private func makeSwipeActions(for indexPath: IndexPath?) -> UISwipeActionsConfiguration? {
+        guard let indexPath = indexPath, let id = dataSource.itemIdentifier(for: indexPath) else { return nil }
+        let deleteActionTitle = NSLocalizedString("Delete", comment: "Delete action title")
+        /// By default, destructive actions appear with a red background. You can customize an action’s background by setting the background property.
+        let deleteAction = UIContextualAction(style: .destructive, title: deleteActionTitle) {
+            [weak self] _, _, completion in
+            self?.deleteReminder(withId: id)
+            self?.updateSnapshot()
+            completion(false)
+        }
+        return UISwipeActionsConfiguration(actions: [deleteAction])
     }
 }
 
