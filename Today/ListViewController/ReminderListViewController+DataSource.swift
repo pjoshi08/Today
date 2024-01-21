@@ -19,6 +19,8 @@ extension ReminderListViewController {
         NSLocalizedString("Not completed", comment: "Reminder not complete value")
     }
     
+    private var reminderStore: ReminderStore { ReminderStore.shared }
+    
     func updateSnapshot(reloading idsThatChanged: [Reminder.ID] = []) {
         let ids = idsThatChanged.filter { id in filteredReminders.contains(where: { $0.id == id }) }
         var snapshot = SnapShot()
@@ -80,6 +82,26 @@ extension ReminderListViewController {
     func deleteReminder(withId id: Reminder.ID) {
         let index = reminders.indexOfReminder(withId: id)
         reminders.remove(at: index)
+    }
+    
+    /// You must call functions marked as async from within a Task or another asynchronous function.
+    func prepareReminderStore() {
+        /// By creating a Task, you create a new unit of work that executes asynchronously.
+        Task {
+            /// Add a do block that awaits access to the reminder store.
+            do {
+                try await reminderStore.requestAccess()
+                reminders = try await reminderStore.readAll()
+            } catch TodayError.accessDenied, TodayError.accessRestricted {
+                #if DEBUG
+                reminders = Reminder.sampleData
+                #endif
+            } catch {
+                /// Swift error handling has similarities to a switch statement. If a function in the do block throws an error, that error falls through until it finds a matching catch block.
+                showError(error)
+            }
+            updateSnapshot()
+        }
     }
     
     private func doneButtonAccessibilityAction(for reminder: Reminder) -> UIAccessibilityCustomAction
