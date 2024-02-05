@@ -71,4 +71,35 @@ final class ReminderStore {
         }
         return reminders
     }
+    
+    /// You won’t use the identifier that this method returns in all situations. The @discardableResult attribute instructs the compiler to omit warnings in cases where the call site doesn’t capture the return value.
+    @discardableResult
+    func save(_ reminder: Reminder) throws -> Reminder.ID {
+        guard isAvailable else {
+            throw TodayError.accessDenied
+        }
+        let ekReminder: EKReminder
+        do {
+            ekReminder = try read(with: reminder.id)
+        } catch {
+            ekReminder = EKReminder(eventStore: ekStore)
+        }
+        ekReminder.update(using: reminder, in: ekStore)
+        try ekStore.save(ekReminder, commit: true)
+        return ekReminder.calendarItemIdentifier
+    }
+    
+    func remove(with id: Reminder.ID) throws {
+        guard isAvailable else { throw TodayError.accessDenied }
+        let ekReminder = try read(with: id)
+        try ekStore.remove(ekReminder, commit: true)
+    }
+    
+    private func read(with id: Reminder.ID) throws -> EKReminder {
+        /// Because the method calendarItem(withIdentifier:) returns the superclass EKCalendarItem, you downcast to EKReminder. The downcast ensures that you can safely treat the item as an EKReminder.
+        guard let ekReminder = ekStore.calendarItem(withIdentifier: id) as? EKReminder else {
+            throw TodayError.failedReadingCalenderItem
+        }
+        return ekReminder
+    }
 }

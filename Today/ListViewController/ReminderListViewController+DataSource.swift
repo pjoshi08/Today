@@ -64,8 +64,14 @@ extension ReminderListViewController {
     }
     
     func updateReminder(_ reminder: Reminder) {
-        let index = reminders.indexOfReminder(withId: reminder.id)
-        reminders[index] = reminder
+        do {
+            try reminderStore.save(reminder)
+            let index = reminders.indexOfReminder(withId: reminder.id)
+            reminders[index] = reminder
+        } catch TodayError.accessDenied {
+        } catch {
+            showError(error)
+        }
     }
     
     func completeReminder(withId id: Reminder.ID) {
@@ -76,12 +82,28 @@ extension ReminderListViewController {
     }
     
     func addReminder(_ reminder: Reminder) {
-        reminders.append(reminder)
+        /// EventKit assigns unique identifiers to reminders. You’ll start by creating a mutable copy of the reminder so that it can receive its new identifier.
+        /// Swift function parameters are constants by default. You declared a local variable so that you can mutate its properties within the function.
+        var reminder = reminder
+        do {
+            let idFromStore = try reminderStore.save(reminder)
+            reminder.id = idFromStore
+            reminders.append(reminder)
+        } catch TodayError.accessDenied {
+        } catch {
+            showError(error)
+        }
     }
     
     func deleteReminder(withId id: Reminder.ID) {
-        let index = reminders.indexOfReminder(withId: id)
-        reminders.remove(at: index)
+        do {
+            try reminderStore.remove(with: id)
+            let index = reminders.indexOfReminder(withId: id)
+            reminders.remove(at: index)
+        } catch TodayError.accessDenied {
+        } catch {
+            showError(error)
+        }
     }
     
     /// You must call functions marked as async from within a Task or another asynchronous function.
@@ -92,6 +114,8 @@ extension ReminderListViewController {
             do {
                 try await reminderStore.requestAccess()
                 reminders = try await reminderStore.readAll()
+                NotificationCenter.default.addObserver(
+                    self, selector: #selector(eventStoreChanged(_:)), name: .EKEventStoreChanged, object: nil)
             } catch TodayError.accessDenied, TodayError.accessRestricted {
                 #if DEBUG
                 reminders = Reminder.sampleData
@@ -100,6 +124,13 @@ extension ReminderListViewController {
                 /// Swift error handling has similarities to a switch statement. If a function in the do block throws an error, that error falls through until it finds a matching catch block.
                 showError(error)
             }
+            updateSnapshot()
+        }
+    }
+    
+    func reminderStoreChanged() {
+        Task {
+            reminders = try await reminderStore.readAll()
             updateSnapshot()
         }
     }
